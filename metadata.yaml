@@ -1,0 +1,6 @@
+name: stardewvalleywiki
+display_name: 星露谷维基查询
+desc: 星露谷物语中文维基查询插件，支持查询游戏物品、任务、村民等信息
+version: v1.0.0
+author: YourName
+repo: https://github.com/YourName/stardewvalleywiki
