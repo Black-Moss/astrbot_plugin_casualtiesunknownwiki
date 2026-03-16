@@ -1,21 +1,20 @@
 import os
 import json
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Optional
 
 
 class CacheManager:
-    """星露谷维基缓存管理器"""
-
     CACHE_TTL_HOURS = 24
 
-    def __init__(self, cache_dir: str):
-        self.cache_file = os.path.join(cache_dir, "stardew_cache.json")
+    def __init__(self, data_dir: Path):
+        self.cache_file = data_dir / "stardew_cache.json"
         self._ensure_cache_file()
 
     def _ensure_cache_file(self):
-        if not os.path.exists(self.cache_file):
-            os.makedirs(os.path.dirname(self.cache_file), exist_ok=True)
+        self.cache_file.parent.mkdir(parents=True, exist_ok=True)
+        if not self.cache_file.exists():
             self._save({"pages": {}, "searches": {}, "meta": {}})
 
     def _load(self) -> dict:
@@ -37,7 +36,6 @@ class CacheManager:
             return True
 
     def get_page(self, title: str) -> Optional[str]:
-        """获取页面缓存"""
         cache = self._load()
         pages = cache.get("pages", {})
         if title in pages:
@@ -51,7 +49,6 @@ class CacheManager:
         return None
 
     def set_page(self, title: str, content: str):
-        """设置页面缓存"""
         cache = self._load()
         if "pages" not in cache:
             cache["pages"] = {}
@@ -62,7 +59,6 @@ class CacheManager:
         self._save(cache)
 
     def get_search(self, keyword: str) -> Optional[list]:
-        """获取搜索缓存"""
         cache = self._load()
         searches = cache.get("searches", {})
         if keyword in searches:
@@ -76,7 +72,6 @@ class CacheManager:
         return None
 
     def set_search(self, keyword: str, results: list):
-        """设置搜索缓存"""
         cache = self._load()
         if "searches" not in cache:
             cache["searches"] = {}

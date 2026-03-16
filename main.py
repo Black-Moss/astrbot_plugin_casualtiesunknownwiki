@@ -1,7 +1,6 @@
-import os
-import os.path
+from pathlib import Path
 from astrbot.api.event import filter, AstrMessageEvent
-from astrbot.api.star import Context, Star, register
+from astrbot.api.star import Context, Star, register, StarTools
 from astrbot.api import logger
 
 from .spider import WikiSpider
@@ -13,9 +12,7 @@ class StardewValleyWiki(Star):
     def __init__(self, context: Context):
         super().__init__(context)
         self.spider = WikiSpider()
-        
-        # 获取插件数据目录
-        data_dir = os.path.join(context.get_data_dir(), "stardewvalleywiki")
+        data_dir = StarTools.get_data_dir()
         self.cache = CacheManager(data_dir)
 
     async def initialize(self):
@@ -23,7 +20,6 @@ class StardewValleyWiki(Star):
 
     @filter.command("wiki")
     async def wiki(self, event: AstrMessageEvent):
-        """查询星露谷维基"""
         args = event.message_str.strip().split()
         
         if not args:
@@ -37,7 +33,6 @@ class StardewValleyWiki(Star):
             yield await self._query(event, keyword)
 
     async def _query(self, event: AstrMessageEvent, keyword: str):
-        """查询页面"""
         cached = self.cache.get_page(keyword)
         if cached:
             logger.info(f"[Wiki] 命中缓存: {keyword}")
@@ -45,7 +40,7 @@ class StardewValleyWiki(Star):
             return
 
         logger.info(f"[Wiki] 查询: {keyword}")
-        data = self.spider.query_page(keyword)
+        data = await self.spider.query_page(keyword)
         
         if "error" in data:
             yield event.plain_result(f"查询失败: {data['error']}")
@@ -60,7 +55,6 @@ class StardewValleyWiki(Star):
             yield event.plain_result(f"未找到页面：「{keyword}」")
 
     async def _search(self, event: AstrMessageEvent, args: list):
-        """搜索页面"""
         if not args:
             yield event.plain_result("请输入搜索关键词，如：/wiki search 酿酒")
             return
@@ -73,7 +67,7 @@ class StardewValleyWiki(Star):
             return
 
         logger.info(f"[Wiki] 搜索: {keyword}")
-        results = self.spider.search(keyword)
+        results = await self.spider.search(keyword)
         
         if results:
             self.cache.set_search(keyword, results)
@@ -82,7 +76,6 @@ class StardewValleyWiki(Star):
             yield event.plain_result(f"未找到相关结果：「{keyword}」")
 
     def _format_content(self, content: str) -> str:
-        """格式化页面内容"""
         lines = content.split("\n")
         result = []
         in_table = False
@@ -91,10 +84,10 @@ class StardewValleyWiki(Star):
             line = line.strip()
             if not line:
                 continue
-            if line.startswith("{|") or line.startswith("{|"):
+            if line.startswith("{|"):
                 in_table = True
                 continue
-            if line == "|}" or line == "|}" or line == "|}":
+            if line == "|}" or line == "|}}":
                 in_table = False
                 continue
             if in_table:
@@ -116,7 +109,6 @@ class StardewValleyWiki(Star):
         return "\n".join(result[:50])
 
     def _format_search_results(self, keyword: str, results: list) -> str:
-        """格式化搜索结果"""
         if not results:
             return f"未找到相关结果：「{keyword}」"
         
