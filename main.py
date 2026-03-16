@@ -1,5 +1,5 @@
 from pathlib import Path
-from astrbot.api.event import filter, AstrMessageEvent
+from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
 from astrbot.api.star import Context, Star, register, StarTools
 from astrbot.api import logger
 
@@ -36,6 +36,27 @@ class StardewValleyWiki(Star):
             result = await self._query(event, keyword)
             if result:
                 yield event.plain_result(result)
+
+    @filter.llm_tool(name="stardew_wiki_search")
+    async def stardew_wiki_search(self, event: AstrMessageEvent, keyword: str) -> MessageEventResult:
+        '''搜索星露谷物语中文维基百科。
+
+        Args:
+            keyword(string): 要搜索的关键词，如物品名、NPC名等
+        '''
+        cached = self.cache.get_search(keyword)
+        if cached:
+            logger.info(f"[Wiki] AI搜索命中缓存: {keyword}")
+            return self._format_search_results(keyword, cached)
+
+        logger.info(f"[Wiki] AI搜索: {keyword}")
+        results = await self.spider.search(keyword)
+        
+        if results:
+            self.cache.set_search(keyword, results)
+            return self._format_search_results(keyword, results)
+        else:
+            return f"未找到相关结果：「{keyword}」"
 
     async def _query(self, event: AstrMessageEvent, keyword: str) -> str | None:
         cached = self.cache.get_page(keyword)
