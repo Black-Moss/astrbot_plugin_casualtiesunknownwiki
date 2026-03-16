@@ -27,53 +27,53 @@ class StardewValleyWiki(Star):
             return
 
         if args[0] == "search":
-            yield await self._search(event, args[1:] if len(args) > 1 else [])
+            result = await self._search(event, args[1:] if len(args) > 1 else [])
+            if result:
+                yield event.plain_result(result)
         else:
             keyword = " ".join(args)
-            yield await self._query(event, keyword)
+            result = await self._query(event, keyword)
+            if result:
+                yield event.plain_result(result)
 
-    async def _query(self, event: AstrMessageEvent, keyword: str):
+    async def _query(self, event: AstrMessageEvent, keyword: str) -> str | None:
         cached = self.cache.get_page(keyword)
         if cached:
             logger.info(f"[Wiki] 命中缓存: {keyword}")
-            yield event.plain_result(self._format_content(cached))
-            return
+            return self._format_content(cached)
 
         logger.info(f"[Wiki] 查询: {keyword}")
         data = await self.spider.query_page(keyword)
         
         if "error" in data:
-            yield event.plain_result(f"查询失败: {data['error']}")
-            return
+            return f"查询失败: {data['error']}"
 
         result = self.spider.parse_page_content(data)
         if result:
             content = result["content"]
             self.cache.set_page(keyword, content)
-            yield event.plain_result(self._format_content(content))
+            return self._format_content(content)
         else:
-            yield event.plain_result(f"未找到页面：「{keyword}」")
+            return f"未找到页面：「{keyword}」"
 
-    async def _search(self, event: AstrMessageEvent, args: list):
+    async def _search(self, event: AstrMessageEvent, args: list) -> str | None:
         if not args:
-            yield event.plain_result("请输入搜索关键词，如：/wiki search 酿酒")
-            return
+            return "请输入搜索关键词，如：/wiki search 酿酒"
 
         keyword = " ".join(args)
         cached = self.cache.get_search(keyword)
         if cached:
             logger.info(f"[Wiki] 搜索命中缓存: {keyword}")
-            yield event.plain_result(self._format_search_results(keyword, cached))
-            return
+            return self._format_search_results(keyword, cached)
 
         logger.info(f"[Wiki] 搜索: {keyword}")
         results = await self.spider.search(keyword)
         
         if results:
             self.cache.set_search(keyword, results)
-            yield event.plain_result(self._format_search_results(keyword, results))
+            return self._format_search_results(keyword, results)
         else:
-            yield event.plain_result(f"未找到相关结果：「{keyword}」")
+            return f"未找到相关结果：「{keyword}」"
 
     def _format_content(self, content: str) -> str:
         lines = content.split("\n")
