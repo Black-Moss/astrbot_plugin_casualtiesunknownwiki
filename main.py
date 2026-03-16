@@ -21,6 +21,7 @@ class StardewValleyWiki(Star):
     @filter.command("wiki")
     async def wiki(self, event: AstrMessageEvent):
         args = event.message_str.strip().split()
+        args = args[1:] if args and args[0] in ["wiki", "/wiki"] else args
         
         if not args:
             yield event.plain_result("请输入查询关键词，如：/wiki 丢失的斧子\n搜索模式：/wiki search 物品名")
