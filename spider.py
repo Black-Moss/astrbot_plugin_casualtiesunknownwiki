@@ -54,17 +54,19 @@ class WikiSpider:
 
     async def _request(self, params: dict) -> dict:
         try:
-            # 尝试不同的浏览器指纹：chrome120, chrome110, edge101, safari15_3 等
+            logger.info(f"[WikiSpider] 请求 URL: {self.BASE_URL}, 参数：{params}")
             resp = requests.get(
                 self.BASE_URL,
                 params=params,
                 headers=self.HEADERS,
                 timeout=self.timeout,
-                impersonate="chrome110"  # 可以尝试改成 chrome110 或 edge101
+                impersonate="chrome120"
             )
+            logger.info(f"[WikiSpider] 响应状态码：{resp.status_code}")
             resp.raise_for_status()
             return resp.json()
         except Exception as e:
+            logger.error(f"[WikiSpider] 请求失败：{str(e)}")
             return {"error": str(e)}
 
     @staticmethod
