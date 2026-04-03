@@ -2,6 +2,7 @@ import aiohttp
 from typing import Optional
 import logging
 import asyncio
+import random
 
 logger = logging.getLogger(__name__)
 
@@ -12,14 +13,21 @@ class WikiSpider:
 
     def __init__(self, timeout: int = 10):
         self.timeout = aiohttp.ClientTimeout(total=timeout)
+
+        user_agents = [
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        ]
+
         self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "application/json, text/plain, */*",
-            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+            "User-Agent": random.choice(user_agents),
+            "Accept": "application/json, text/plain;q=0.9, */*;q=0.8",
+            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8,zh-TW;q=0.7",
             "Accept-Encoding": "gzip, deflate",
             "Connection": "keep-alive",
-            "Referer": "https://scavprototype.wiki.gg/",
-            "Origin": "https://scavprototype.wiki.gg",
+            "Upgrade-Insecure-Requests": "1",
+            "Cache-Control": "no-cache",
         }
 
     async def query_page(self, title: str, redirects: bool = True) -> dict:
@@ -69,16 +77,22 @@ class WikiSpider:
     async def _request(self, params: dict) -> dict:
         errors = []
 
+        connector = aiohttp.TCPConnector(ssl=False)
+
         # 优先尝试中文 API
         try:
             logger.debug(f"请求中文 API: {self.ZH_URL}, params={params}")
-            async with aiohttp.ClientSession(timeout=self.timeout, headers=self.headers) as session:
+            async with aiohttp.ClientSession(
+                    timeout=self.timeout,
+                    headers=self.headers,
+                    connector=connector
+            ) as session:
                 async with session.get(self.ZH_URL, params=params, auto_decompress=False) as resp:
-                    logger.debug(f"中文 API 响应状态码：{resp.status}")
+                    logger.debug(f"中文 API 响应状态码：{resp.status}, 响应头：{dict(resp.headers)}")
                     if resp.status == 200:
                         return await resp.json()
                     elif resp.status == 403:
-                        error_msg = f"中文 API 拒绝访问 (403)，可能需要检查 User-Agent 或其他请求头"
+                        error_msg = f"中文 API 拒绝访问 (403)"
                         logger.error(error_msg)
                         errors.append(error_msg)
                     else:
@@ -91,13 +105,17 @@ class WikiSpider:
         # 中文失败后尝试英文 API
         try:
             logger.debug(f"请求英文 API: {self.EN_URL}, params={params}")
-            async with aiohttp.ClientSession(timeout=self.timeout, headers=self.headers) as session:
+            async with aiohttp.ClientSession(
+                    timeout=self.timeout,
+                    headers=self.headers,
+                    connector=connector
+            ) as session:
                 async with session.get(self.EN_URL, params=params, auto_decompress=False) as resp:
-                    logger.debug(f"英文 API 响应状态码：{resp.status}")
+                    logger.debug(f"英文 API 响应状态码：{resp.status}, 响应头：{dict(resp.headers)}")
                     if resp.status == 200:
                         return await resp.json()
                     elif resp.status == 403:
-                        error_msg = f"英文 API 拒绝访问 (403)，可能需要检查 User-Agent 或其他请求头"
+                        error_msg = f"英文 API 拒绝访问 (403)"
                         logger.error(error_msg)
                         errors.append(error_msg)
                     else:
