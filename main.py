@@ -47,18 +47,23 @@ class CasualtiesUnknownWiki(Star):
             """)
             return
 
-        if len(args) > 2:
-            args[2] = args[2].upper()
-            if args[2] not in ["EN", "ZH"]:
-                args[2] = "ZH"
+        lang = "ZH"
+        if len(args) >= 2:
+            potential_lang = args[-1].upper()
+            if potential_lang in ["EN", "ZH"]:
+                lang = potential_lang
+                keyword = " ".join(args[:-1])
+            else:
+                keyword = " ".join(args)
+        else:
+            keyword = " ".join(args)
 
         if args[0] == "search":
             result = await self._search(event, args[1:] if len(args) > 1 else [])
             if result:
                 yield event.plain_result(result)
         else:
-            keyword = " ".join(args)
-            result = await self._query(event, keyword, args[2])
+            result = await self._query(event, keyword, lang)
             if result:
                 yield event.plain_result(result)
 
