@@ -54,13 +54,13 @@ class WikiSpider:
 
     async def _request(self, params: dict) -> dict:
         try:
-            # 使用 curl_cffi 发送请求以绕过 Cloudflare，启用 chrome120 模拟
+            # 尝试不同的浏览器指纹：chrome120, chrome110, edge101, safari15_3 等
             resp = requests.get(
                 self.BASE_URL,
                 params=params,
                 headers=self.HEADERS,
                 timeout=self.timeout,
-                impersonate="chrome120"
+                impersonate="chrome110"  # 可以尝试改成 chrome110 或 edge101
             )
             resp.raise_for_status()
             return resp.json()
