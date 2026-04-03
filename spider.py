@@ -2,6 +2,7 @@ import aiohttp
 from typing import Optional
 import logging
 from astrbot.api import logger
+from curl_cffi import requests as curl_requests
 
 class WikiSpider:
     EN_URL = "https://scavprototype.wiki.gg/api.php"
@@ -19,7 +20,7 @@ class WikiSpider:
             "rvprop": "content",
             "redirects": 1 if redirects else 0
         }
-        logger.info(f"[WikiSpider] 查询: {params}")
+        logger.info(f"[WikiSpider] 查询：{params}")
         return await self._request(params)
 
     async def search(self, keyword: str, limit: int = 10) -> list:
@@ -59,20 +60,26 @@ class WikiSpider:
             async with aiohttp.ClientSession(timeout=self.timeout) as session:
                 logger.info(f"[WikiSpider] 中文查询：{params}")
                 async with session.get(self.ZH_URL, params=params) as resp:
+                    logger.info(f"[WikiSpider] 中文响应状态码：{resp.status}")
                     if resp.status == 200:
                         return await resp.json()
+                    else:
+                        logger.error(f"[WikiSpider] 中文 API 返回非 200 状态码：{resp.status}")
         except Exception as e:
-            logger.warning(f"中文 API 请求失败：{e}")
+            logger.error(f"[WikiSpider] 中文 API 请求异常：{type(e).__name__}: {e}")
 
         # 中文失败后尝试英文 API
         try:
             async with aiohttp.ClientSession(timeout=self.timeout) as session:
                 logger.info(f"[WikiSpider] 英文查询：{params}")
                 async with session.get(self.EN_URL, params=params) as resp:
+                    logger.info(f"[WikiSpider] 英文响应状态码：{resp.status}")
                     if resp.status == 200:
                         return await resp.json()
+                    else:
+                        logger.error(f"[WikiSpider] 英文 API 返回非 200 状态码：{resp.status}")
         except Exception as e:
-            logger.error(f"英文 API 请求失败：{e}")
+            logger.error(f"[WikiSpider] 英文 API 请求异常：{type(e).__name__}: {e}")
 
         return {"error": "两个 API 都失效了"}
 
