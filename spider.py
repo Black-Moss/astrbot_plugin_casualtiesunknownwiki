@@ -18,6 +18,8 @@ class WikiSpider:
             "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
             "Accept-Encoding": "gzip, deflate",
             "Connection": "keep-alive",
+            "Referer": "https://scavprototype.wiki.gg/",
+            "Origin": "https://scavprototype.wiki.gg",
         }
 
     async def query_page(self, title: str, redirects: bool = True) -> dict:
