@@ -41,33 +41,34 @@ class WikiSpider:
         """使用更底层的 API 绕过 Cloudflare"""
         try:
             from curl_cffi import Curl
-            
+
             curl = Curl()
-            
+
             # 设置浏览器特征
-            curl.setopt(CurlOpt.USERAGENT, b"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+            curl.setopt(CurlOpt.USERAGENT,
+                        b"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
             curl.setopt(CurlOpt.HTTP_VERSION, 2)
-            
+
             # 构建 URL
             url = f"{self.BASE_URL}?{'&'.join([f'{k}={v}' for k, v in params.items()])}"
             logger.info(f"[WikiSpider] 请求 URL: {url}")
-            
+
             # 设置 TLS 指纹
             curl.setopt(CurlOpt.SSL_EC_CURVES, b"x25519kyber768draft00")
-            
+
             resp = curl.perform(url)
             status_code = curl.getinfo(CurlInfo.RESPONSE_CODE)
             content = resp.decode('utf-8')
-            
+
             logger.info(f"[WikiSpider] 响应状态码：{status_code}")
-            
+
             if status_code == 200:
                 import json
                 return json.loads(content)
             else:
                 logger.error(f"[WikiSpider] 请求失败，状态码：{status_code}")
                 return None
-                
+
         except Exception as e:
             logger.error(f"[WikiSpider] 请求异常：{str(e)}")
             return None
