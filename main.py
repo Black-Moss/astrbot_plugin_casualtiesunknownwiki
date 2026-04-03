@@ -14,9 +14,6 @@ class CasualtiesUnknownWiki(Star):
 
         self.spider = WikiSpider(cookies=cookies)
         data_dir = StarTools.get_data_dir()
-        self.config = config
-        if not cookies:
-            logger.warning("[Wiki] 未配置 wiki_cookies，可能无法通过 Cloudflare 验证")
         self.cache = CacheManager(data_dir)
 
 
