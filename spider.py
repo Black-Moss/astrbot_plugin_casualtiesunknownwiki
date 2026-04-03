@@ -3,7 +3,7 @@ from typing import Optional
 
 
 class WikiSpider:
-    BASE_URL = "https://zh.stardewvalleywiki.com/mediawiki/api.php"
+    BASE_URL = "https://scavprototype.wiki.gg/zh/api.php"
 
     def __init__(self, timeout: int = 10):
         self.timeout = aiohttp.ClientTimeout(total=timeout)
