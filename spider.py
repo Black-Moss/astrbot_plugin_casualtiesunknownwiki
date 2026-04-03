@@ -25,7 +25,7 @@ class WikiSpider:
         
         logger.info(f"[WikiSpider] 初始化完成，当前 cookies: {list(self.cookies.keys()) if self.cookies else '无'}")
 
-    async def query_page(self, title: str, redirects: bool = True) -> dict:
+    async def query_page(self, title: str, redirects: bool = True, lang: str = "ZH") -> dict:
         params = {
             "action": "query",
             "format": "json",
@@ -35,7 +35,7 @@ class WikiSpider:
             "redirects": 1 if redirects else 0
         }
         logger.info(f"[WikiSpider] 查询：{params}")
-        return await self._request(params)
+        return await self._request(params, lang)
 
     async def search(self, keyword: str, limit: int = 10) -> list:
         params = {
@@ -86,7 +86,7 @@ class WikiSpider:
             await browser.close()
             return []
 
-    async def _request(self, params: dict) -> dict:
+    async def _request(self, params: dict, lang: str = "ZH") -> dict:
         async with async_playwright() as p:
             # 启动浏览器（无头模式）
             browser = await p.chromium.launch(headless=True)
@@ -107,46 +107,48 @@ class WikiSpider:
             page = await context.new_page()
             
             # 优先尝试中文 API
-            try:
-                logger.info(f"[WikiSpider] 中文查询：{params}")
-                zh_url_with_params = f"{self.ZH_URL}?{'&'.join([f'{k}={v}' for k, v in params.items()])}"
-                response = await page.goto(zh_url_with_params, wait_until='networkidle')
-                
-                logger.info(f"[WikiSpider] 中文响应状态码：{response.status}")
-                
-                if response.status == 200:
-                    content_type = response.headers.get('content-type', '')
-                    if 'application/json' in content_type:
-                        data = await response.json()
-                        await browser.close()
-                        return data
+            if lang == "ZH":
+                try:
+                    logger.info(f"[WikiSpider] 中文查询：{params}")
+                    zh_url_with_params = f"{self.ZH_URL}?{'&'.join([f'{k}={v}' for k, v in params.items()])}"
+                    response = await page.goto(zh_url_with_params, wait_until='networkidle')
+
+                    logger.info(f"[WikiSpider] 中文响应状态码：{response.status}")
+
+                    if response.status == 200:
+                        content_type = response.headers.get('content-type', '')
+                        if 'application/json' in content_type:
+                            data = await response.json()
+                            await browser.close()
+                            return data
+                        else:
+                            logger.error(f"[WikiSpider] 中文 API 返回非 JSON 内容：{content_type}")
                     else:
-                        logger.error(f"[WikiSpider] 中文 API 返回非 JSON 内容：{content_type}")
-                else:
-                    logger.error(f"[WikiSpider] 中文 API 返回非 200 状态码：{response.status}")
-            except Exception as e:
-                logger.error(f"[WikiSpider] 中文 API 请求异常：{type(e).__name__}: {e}")
+                        logger.error(f"[WikiSpider] 中文 API 返回非 200 状态码：{response.status}")
+                except Exception as e:
+                    logger.error(f"[WikiSpider] 中文 API 请求异常：{type(e).__name__}: {e}")
 
             # 中文失败后尝试英文 API
-            try:
-                logger.info(f"[WikiSpider] 英文查询：{params}")
-                en_url_with_params = f"{self.EN_URL}?{'&'.join([f'{k}={v}' for k, v in params.items()])}"
-                response = await page.goto(en_url_with_params, wait_until='networkidle')
-                
-                logger.info(f"[WikiSpider] 英文响应状态码：{response.status}")
-                
-                if response.status == 200:
-                    content_type = response.headers.get('content-type', '')
-                    if 'application/json' in content_type:
-                        data = await response.json()
-                        await browser.close()
-                        return data
+            if lang == "EN":
+                try:
+                    logger.info(f"[WikiSpider] 英文查询：{params}")
+                    en_url_with_params = f"{self.EN_URL}?{'&'.join([f'{k}={v}' for k, v in params.items()])}"
+                    response = await page.goto(en_url_with_params, wait_until='networkidle')
+
+                    logger.info(f"[WikiSpider] 英文响应状态码：{response.status}")
+
+                    if response.status == 200:
+                        content_type = response.headers.get('content-type', '')
+                        if 'application/json' in content_type:
+                            data = await response.json()
+                            await browser.close()
+                            return data
+                        else:
+                            logger.error(f"[WikiSpider] 英文 API 返回非 JSON 内容：{content_type}")
                     else:
-                        logger.error(f"[WikiSpider] 英文 API 返回非 JSON 内容：{content_type}")
-                else:
-                    logger.error(f"[WikiSpider] 英文 API 返回非 200 状态码：{response.status}")
-            except Exception as e:
-                logger.error(f"[WikiSpider] 英文 API 请求异常：{type(e).__name__}: {e}")
+                        logger.error(f"[WikiSpider] 英文 API 返回非 200 状态码：{response.status}")
+                except Exception as e:
+                    logger.error(f"[WikiSpider] 英文 API 请求异常：{type(e).__name__}: {e}")
             
             await browser.close()
             return {"error": "两个 API 都失效了"}

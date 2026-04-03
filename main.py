@@ -40,8 +40,17 @@ class CasualtiesUnknownWiki(Star):
         args = args[1:] if args and args[0] in ["wiki", "/wiki"] else args
         
         if not args:
-            yield event.plain_result("请输入查询关键词，如：/wiki 设定\n搜索模式：/wiki search 物品名")
+            yield event.plain_result("""
+            请输入查询关键词：/wiki 设定\n
+            添加后缀准确查询单个Wiki：/wiki Lore EN
+            搜索模式：/wiki search 物品名
+            """)
             return
+
+        if args[2] in ["en", "EN"]:
+            args[2] = "EN"
+        if args[2] in ["zh", "ZH"]:
+            args[2] = "ZH"
 
         if args[0] == "search":
             result = await self._search(event, args[1:] if len(args) > 1 else [])
@@ -49,18 +58,18 @@ class CasualtiesUnknownWiki(Star):
                 yield event.plain_result(result)
         else:
             keyword = " ".join(args)
-            result = await self._query(event, keyword)
+            result = await self._query(event, keyword, args[2])
             if result:
                 yield event.plain_result(result)
 
-    async def _query(self, event: AstrMessageEvent, keyword: str) -> str | None:
+    async def _query(self, event: AstrMessageEvent, keyword: str, lang: str) -> str | None:
         cached = self.cache.get_page(keyword)
         if cached:
             logger.info(f"[Wiki] 命中缓存：{keyword}")
             return self._format_content(cached)
 
         logger.info(f"[Wiki] 查询：{keyword}")
-        data = await self.spider.query_page(keyword)
+        data = await self.spider.query_page(keyword, lang)
         
         if "error" in data:
             return f"查询失败：{data['error']}"
