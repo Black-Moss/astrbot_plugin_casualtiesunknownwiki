@@ -103,61 +103,55 @@ class WikiSpider:
         return await self._request_with_curl(params)
 
     async def _request_with_curl(self, params: dict) -> dict:
-        """使用 subprocess 调用 curl 命令"""
+        """使用 subprocess 调用 curl 命令（Linux）"""
         
         def _run_curl(url: str) -> tuple[int, str]:
-            # 构建 curl 命令 - 使用 PowerShell 语法
-            # 直接在 PowerShell 中执行完整命令
-            ps_script = f'''
-            $headers = @{{
-                "accept" = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"
-                "accept-language" = "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6"
-                "cache-control" = "max-age=0"
-                "sec-ch-ua" = '"Chromium";v="146", "Not-A.Brand";v="24", "Microsoft Edge";v="146"'
-                "sec-ch-ua-mobile" = "?0"
-                "sec-ch-ua-platform" = '"Windows"'
-                "sec-fetch-dest" = "document"
-                "sec-fetch-mode" = "navigate"
-                "sec-fetch-site" = "same-origin"
-                "sec-fetch-user" = "?1"
-                "upgrade-insecure-requests" = "1"
-                "user-agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36 Edg/146.0.0.0"
-            }}
+            # 构建 curl 命令 - Linux bash 语法
+            cmd_list = ['curl', url, '-G', '--compressed']
             
-            $cookies = "{"; ".join([f'{k}={v}' for k, v in self.cookies.items()])}"
+            # 添加参数
+            for key, value in params.items():
+                cmd_list.extend(['--data-urlencode', f'{key}={value}'])
             
-            $params = @{{
-                {"; ".join([f'"{k}" = "{v}"' for k, v in params.items()])}
-            }}
+            # 添加请求头
+            cmd_list.extend(['-H', 'accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7'])
+            cmd_list.extend(['-H', 'accept-language: zh-CN,zh;q=0.9,en;q=0.8'])
+            cmd_list.extend(['-H', 'cache-control: max-age=0'])
+            cmd_list.extend(['-H', 'sec-ch-ua: "Chromium";v="146", "Not-A.Brand";v="24", "Microsoft Edge";v="146"'])
+            cmd_list.extend(['-H', 'sec-ch-ua-mobile: ?0'])
+            cmd_list.extend(['-H', 'sec-ch-ua-platform: "Windows"'])
+            cmd_list.extend(['-H', 'sec-fetch-dest: document'])
+            cmd_list.extend(['-H', 'sec-fetch-mode: navigate'])
+            cmd_list.extend(['-H', 'sec-fetch-site: same-origin'])
+            cmd_list.extend(['-H', 'sec-fetch-user: ?1'])
+            cmd_list.extend(['-H', 'upgrade-insecure-requests: 1'])
+            cmd_list.extend(['-H', 'user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36 Edg/146.0.0.0'])
             
-            $queryString = [System.Web.HttpUtility]::ParseQueryString([string]::Empty)
-            foreach ($key in $params.Keys) {{
-                $queryString.Add($key, $params[$key])
-            }}
+            # 添加 cookies
+            if self.cookies:
+                cookie_str = '; '.join([f'{k}={v}' for k, v in self.cookies.items()])
+                logger.info(f"[WikiSpider] 使用 cookies: {cookie_str[:80]}...")
+                cmd_list.extend(['-b', cookie_str])
             
-            $fullUrl = "{url}`?$($queryString.ToString())"
+            logger.info(f"[WikiSpider] 执行 curl 命令")
             
-            $result = curl.exe -X GET $fullUrl `
-                -H ($headers.GetEnumerator() | ForEach-Object {{ "$($_.Key): $($_.Value)" }}) `
-                -b $cookies
-            
-            Write-Host $result
-            '''
-            
+            # 执行命令
             try:
                 result = subprocess.run(
-                    ['powershell', '-Command', ps_script],
+                    cmd_list,
                     capture_output=True,
                     text=True,
-                    timeout=self.timeout,
-                    shell=True
+                    timeout=self.timeout
                 )
-                logger.info(f"[WikiSpider] PowerShell 返回码：{result.returncode}")
+                logger.info(f"[WikiSpider] curl 返回码：{result.returncode}")
                 if result.returncode != 0:
-                    logger.error(f"[WikiSpider] PowerShell stderr: {result.stderr[:200]}")
+                    logger.error(f"[WikiSpider] curl stderr: {result.stderr[:200]}")
                 return result.returncode, result.stdout
+            except subprocess.TimeoutExpired:
+                logger.error(f"[WikiSpider] curl 超时")
+                return -1, ""
             except Exception as e:
-                logger.error(f"PowerShell 执行失败：{e}")
+                logger.error(f"curl 执行失败：{e}")
                 return -1, ""
         
         # 优先尝试中文 API
