@@ -7,16 +7,31 @@ from .spider import WikiSpider
 from .cache import CacheManager
 
 
-@register("casualtiesunknownwiki", "Black_Moss", "Casualties Unknown Wiki查询", "1.0.0")
+@register("casualtiesunknownwiki", "Black_Moss", "Casualties Unknown Wiki 查询", "1.0.0")
 class CasualtiesUnknownWiki(Star):
     def __init__(self, context: Context):
         super().__init__(context)
-        self.spider = WikiSpider()
+        
+        # 读取配置
+        config = self.context.get_config()
+        cookies = {}
+        
+        # 尝试从配置中读取 cookie
+        if hasattr(config, 'wiki_cookies'):
+            cookies = config.wiki_cookies
+        elif 'wiki_cookies' in config:
+            cookies = config['wiki_cookies']
+        
+        # 如果没有配置，尝试从环境变量或默认值读取
+        if not cookies:
+            logger.warning("[Wiki] 未配置 wiki_cookies，可能无法通过 Cloudflare 验证")
+        
+        self.spider = WikiSpider(cookies=cookies)
         data_dir = StarTools.get_data_dir()
         self.cache = CacheManager(data_dir)
 
     async def initialize(self):
-        logger.info("Casualties Unknown Wiki查询已加载")
+        logger.info("Casualties Unknown Wiki 查询已加载")
 
     @filter.command("wiki")
     async def wiki(self, event: AstrMessageEvent):
@@ -40,14 +55,14 @@ class CasualtiesUnknownWiki(Star):
     async def _query(self, event: AstrMessageEvent, keyword: str) -> str | None:
         cached = self.cache.get_page(keyword)
         if cached:
-            logger.info(f"[Wiki] 命中缓存: {keyword}")
+            logger.info(f"[Wiki] 命中缓存：{keyword}")
             return self._format_content(cached)
 
-        logger.info(f"[Wiki] 查询: {keyword}")
+        logger.info(f"[Wiki] 查询：{keyword}")
         data = await self.spider.query_page(keyword)
         
         if "error" in data:
-            return f"查询失败: {data['error']}"
+            return f"查询失败：{data['error']}"
 
         result = self.spider.parse_page_content(data)
         if result:
@@ -64,10 +79,10 @@ class CasualtiesUnknownWiki(Star):
         keyword = " ".join(args)
         cached = self.cache.get_search(keyword)
         if cached:
-            logger.info(f"[Wiki] 搜索命中缓存: {keyword}")
+            logger.info(f"[Wiki] 搜索命中缓存：{keyword}")
             return self._format_search_results(keyword, cached)
 
-        logger.info(f"[Wiki] 搜索: {keyword}")
+        logger.info(f"[Wiki] 搜索：{keyword}")
         results = await self.spider.search(keyword)
         
         if results:

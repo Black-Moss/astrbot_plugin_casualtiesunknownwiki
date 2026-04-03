@@ -8,8 +8,9 @@ class WikiSpider:
     EN_URL = "https://scavprototype.wiki.gg/api.php"
     ZH_URL = "https://scavprototype.wiki.gg/zh/api.php"
 
-    def __init__(self, timeout: int = 15):
+    def __init__(self, timeout: int = 30, cookies: dict = None):
         self.timeout = timeout
+        self.cookies = cookies or {}
         self.session = curl_requests.Session(
             impersonate="chrome124",
             timeout=timeout,
@@ -78,7 +79,12 @@ class WikiSpider:
             "Sec-Fetch-User": "?1"
         }
         
-        return self.session.get(url, params=params, headers=headers)
+        # 如果有 cookie，添加到请求中
+        request_cookies = None
+        if self.cookies:
+            request_cookies = self.cookies.copy()
+        
+        return self.session.get(url, params=params, headers=headers, cookies=request_cookies)
 
     async def _request(self, params: dict) -> dict:
         # 优先尝试中文 API
@@ -87,7 +93,7 @@ class WikiSpider:
             response = self._make_request(self.ZH_URL, params)
             logger.info(f"[WikiSpider] 中文响应状态码：{response.status_code}")
             if response.status_code != 200:
-                logger.error(f"[WikiSpider] 中文响应内容前 200 字节：{response.text[:200]}")
+                logger.error(f"[WikiSpider] 中文响应内容前 500 字节：{response.text[:500]}")
             if response.status_code == 200:
                 return response.json()
             else:
@@ -101,7 +107,7 @@ class WikiSpider:
             response = self._make_request(self.EN_URL, params)
             logger.info(f"[WikiSpider] 英文响应状态码：{response.status_code}")
             if response.status_code != 200:
-                logger.error(f"[WikiSpider] 英文响应内容前 200 字节：{response.text[:200]}")
+                logger.error(f"[WikiSpider] 英文响应内容前 500 字节：{response.text[:500]}")
             if response.status_code == 200:
                 return response.json()
             else:
