@@ -1,6 +1,7 @@
 import aiohttp
 from typing import Optional
 import logging
+import json
 from astrbot.api import logger
 from curl_cffi import requests as curl_requests
 
@@ -96,7 +97,6 @@ class WikiSpider:
         return self.session.get(url, params=params, headers=headers, cookies=request_cookies)
 
     async def _request(self, params: dict) -> dict:
-        # 使用 curl_cffi
         return await self._request_with_curl_cffi(params)
 
     async def _request_with_curl_cffi(self, params: dict) -> dict:
@@ -108,7 +108,6 @@ class WikiSpider:
             response = self._make_request(self.ZH_URL, params)
             logger.info(f"[WikiSpider] 中文响应状态码：{response.status_code}")
             
-            # 检查是否是 Cloudflare 验证页面
             if response.status_code == 200:
                 content_type = response.headers.get('content-type', '')
                 if 'application/json' in content_type:
@@ -130,7 +129,6 @@ class WikiSpider:
             response = self._make_request(self.EN_URL, params)
             logger.info(f"[WikiSpider] 英文响应状态码：{response.status_code}")
             
-            # 检查是否是 Cloudflare 验证页面
             if response.status_code == 200:
                 content_type = response.headers.get('content-type', '')
                 if 'application/json' in content_type:
