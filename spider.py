@@ -14,7 +14,6 @@ class WikiSpider:
         self.timeout = timeout
         self.cookies = cookies or {}
         
-        # 如果没有提供 cookies，尝试从环境变量读取
         if not self.cookies:
             import os
             cookie_str = os.environ.get('WIKI_COOKIES', '')
@@ -26,7 +25,6 @@ class WikiSpider:
         
         logger.info(f"[WikiSpider] 初始化完成，当前 cookies: {list(self.cookies.keys()) if self.cookies else '无'}")
         
-        # 使用最新支持的 Chrome 版本模拟
         self.session = curl_requests.Session(
             impersonate="chrome124",
             timeout=timeout,
@@ -53,7 +51,6 @@ class WikiSpider:
             "limit": limit
         }
         
-        # 优先尝试中文 API
         try:
             response = self._make_request(self.ZH_URL, params)
             if response.status_code == 200:
@@ -63,7 +60,6 @@ class WikiSpider:
         except Exception as e:
             logger.warning(f"中文 API 搜索失败：{e}")
 
-        # 中文失败后尝试英文 API
         try:
             response = self._make_request(self.EN_URL, params)
             if response.status_code == 200:
@@ -76,10 +72,9 @@ class WikiSpider:
         return []
 
     def _make_request(self, url: str, params: dict = None):
-        """封装请求头设置"""
         headers = {
             "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-            "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6",
+            "accept-language": "zh-CN,zh;q=0.9,en;q=0.8",
             "cache-control": "max-age=0",
             "priority": "u=0, i",
             "sec-ch-ua": '"Chromium";v="146", "Not-A.Brand";v="24", "Microsoft Edge";v="146"',
@@ -100,9 +95,6 @@ class WikiSpider:
         return await self._request_with_curl_cffi(params)
 
     async def _request_with_curl_cffi(self, params: dict) -> dict:
-        """使用 curl_cffi 库"""
-        
-        # 优先尝试中文 API
         try:
             logger.info(f"[WikiSpider] 中文查询：{params}")
             response = self._make_request(self.ZH_URL, params)
@@ -113,9 +105,7 @@ class WikiSpider:
                 if 'application/json' in content_type:
                     return response.json()
                 elif 'text/html' in content_type:
-                    logger.error("[WikiSpider] 中文 API 返回 HTML 而非 JSON，可能被 Cloudflare 拦截")
-                else:
-                    return response.json()
+                    logger.error("[WikiSpider] 中文 API 返回 HTML 而非 JSON")
             else:
                 logger.error(f"[WikiSpider] 中文 API 返回非 200 状态码：{response.status_code}")
         except json.JSONDecodeError as e:
@@ -123,7 +113,6 @@ class WikiSpider:
         except Exception as e:
             logger.error(f"[WikiSpider] 中文 API 请求异常：{type(e).__name__}: {e}")
 
-        # 中文失败后尝试英文 API
         try:
             logger.info(f"[WikiSpider] 英文查询：{params}")
             response = self._make_request(self.EN_URL, params)
@@ -134,9 +123,7 @@ class WikiSpider:
                 if 'application/json' in content_type:
                     return response.json()
                 elif 'text/html' in content_type:
-                    logger.error("[WikiSpider] 英文 API 返回 HTML 而非 JSON，可能被 Cloudflare 拦截")
-                else:
-                    return response.json()
+                    logger.error("[WikiSpider] 英文 API 返回 HTML 而非 JSON")
             else:
                 logger.error(f"[WikiSpider] 英文 API 返回非 200 状态码：{response.status_code}")
         except json.JSONDecodeError as e:
