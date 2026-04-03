@@ -3,10 +3,13 @@ from typing import Optional
 
 
 class WikiSpider:
-    BASE_URL = "https://scavprototype.wiki.gg/api.php"
+    BASE_URL = "https://scavprototype.wiki.gg/zh/api.php"
 
     def __init__(self, timeout: int = 10):
         self.timeout = aiohttp.ClientTimeout(total=timeout)
+        self.headers = {
+            "User-Agent": "AstrBot-CasualtiesUnknownWiki-Plugin/1.0.0 (https://github.com/Black-Moss/astrbot_plugin_casualtiesunknownwiki)"
+        }
 
     async def query_page(self, title: str, redirects: bool = True) -> dict:
         params = {
@@ -27,7 +30,7 @@ class WikiSpider:
             "limit": limit
         }
         try:
-            async with aiohttp.ClientSession(timeout=self.timeout) as session:
+            async with aiohttp.ClientSession(timeout=self.timeout, headers=self.headers) as session:
                 async with session.get(self.BASE_URL, params=params) as resp:
                     resp.raise_for_status()
                     data = await resp.json()
@@ -39,7 +42,7 @@ class WikiSpider:
 
     async def _request(self, params: dict) -> dict:
         try:
-            async with aiohttp.ClientSession(timeout=self.timeout) as session:
+            async with aiohttp.ClientSession(timeout=self.timeout, headers=self.headers) as session:
                 async with session.get(self.BASE_URL, params=params) as resp:
                     resp.raise_for_status()
                     return await resp.json()
@@ -58,3 +61,4 @@ class WikiSpider:
                     "content": page_info["revisions"][0]["*"]
                 }
         return None
+
