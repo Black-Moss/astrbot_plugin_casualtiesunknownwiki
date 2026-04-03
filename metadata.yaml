@@ -1,6 +1,6 @@
-name: stardewvalleywiki
-display_name: 星露谷维基查询
-desc: 星露谷物语中文维基查询插件，支持查询游戏物品、任务、村民等信息
+name: casualtiesunknownwiki
+display_name: Casualties Unknown Wiki查询
+desc: Casualties Unknown Wiki的查询插件，支持中英Wiki查询各种信息，基于hanhanpig3开发的stardewvalleywiki插件。
 version: v1.0.0
-author: hanhanpig3
-repo: https://github.com/hanhanpig3/stardewvalleywiki
+author: Black_Moss
+repo: https://github.com/Black-Moss/astrbot_plugin_casualtiesunknownwiki
