@@ -3,10 +3,6 @@ from typing import Optional
 import logging
 from astrbot.api import logger
 from curl_cffi import requests as curl_requests
-import subprocess
-import json
-import asyncio
-import os
 
 
 class WikiSpider:
@@ -100,7 +96,7 @@ class WikiSpider:
         return self.session.get(url, params=params, headers=headers, cookies=request_cookies)
 
     async def _request(self, params: dict) -> dict:
-        # 使用 curl_cffi 作为主要方法（curl 命令方式已被证明无效）
+        # 使用 curl_cffi
         return await self._request_with_curl_cffi(params)
 
     async def _request_with_curl_cffi(self, params: dict) -> dict:
@@ -111,12 +107,20 @@ class WikiSpider:
             logger.info(f"[WikiSpider] 中文查询：{params}")
             response = self._make_request(self.ZH_URL, params)
             logger.info(f"[WikiSpider] 中文响应状态码：{response.status_code}")
-            if response.status_code != 200:
-                logger.error(f"[WikiSpider] 中文响应内容前 500 字节：{response.text[:500]}")
+            
+            # 检查是否是 Cloudflare 验证页面
             if response.status_code == 200:
-                return response.json()
+                content_type = response.headers.get('content-type', '')
+                if 'application/json' in content_type:
+                    return response.json()
+                elif 'text/html' in content_type:
+                    logger.error("[WikiSpider] 中文 API 返回 HTML 而非 JSON，可能被 Cloudflare 拦截")
+                else:
+                    return response.json()
             else:
                 logger.error(f"[WikiSpider] 中文 API 返回非 200 状态码：{response.status_code}")
+        except json.JSONDecodeError as e:
+            logger.error(f"[WikiSpider] 中文 API JSON 解析失败：{e}")
         except Exception as e:
             logger.error(f"[WikiSpider] 中文 API 请求异常：{type(e).__name__}: {e}")
 
@@ -125,12 +129,20 @@ class WikiSpider:
             logger.info(f"[WikiSpider] 英文查询：{params}")
             response = self._make_request(self.EN_URL, params)
             logger.info(f"[WikiSpider] 英文响应状态码：{response.status_code}")
-            if response.status_code != 200:
-                logger.error(f"[WikiSpider] 英文响应内容前 500 字节：{response.text[:500]}")
+            
+            # 检查是否是 Cloudflare 验证页面
             if response.status_code == 200:
-                return response.json()
+                content_type = response.headers.get('content-type', '')
+                if 'application/json' in content_type:
+                    return response.json()
+                elif 'text/html' in content_type:
+                    logger.error("[WikiSpider] 英文 API 返回 HTML 而非 JSON，可能被 Cloudflare 拦截")
+                else:
+                    return response.json()
             else:
                 logger.error(f"[WikiSpider] 英文 API 返回非 200 状态码：{response.status_code}")
+        except json.JSONDecodeError as e:
+            logger.error(f"[WikiSpider] 英文 API JSON 解析失败：{e}")
         except Exception as e:
             logger.error(f"[WikiSpider] 英文 API 请求异常：{type(e).__name__}: {e}")
 
