@@ -165,6 +165,7 @@ class WikiSpider:
                             logger.error(f"[WikiSpider] 英文 API 返回非 JSON 内容：{content_type}")
                     else:
                         logger.error(f"[WikiSpider] 英文 API 返回非 200 状态码：{response.status}")
+                        return {"error": "英语 API 失效"}
                 except Exception as e:
                     logger.error(f"[WikiSpider] 英文 API 请求异常：{type(e).__name__}: {e}")
                     try:
@@ -185,6 +186,7 @@ class WikiSpider:
                                 logger.error(f"[WikiSpider] 中文 API 返回非 JSON 内容：{content_type}")
                         else:
                             logger.error(f"[WikiSpider] 中文 API 返回非 200 状态码：{response.status}")
+                            return {"error": "中文 API 失效"}
                     except Exception as e2:
                         logger.error(f"[WikiSpider] 中文 API 请求异常：{type(e).__name__}: {e2}")
 
