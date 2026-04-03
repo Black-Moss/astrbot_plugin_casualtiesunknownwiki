@@ -23,9 +23,9 @@ class WikiSpider:
                 except:
                     pass
         
-        # 使用更新的浏览器版本模拟
+        # 使用最新支持的 Chrome 版本模拟
         self.session = curl_requests.Session(
-            impersonate="edge146",
+            impersonate="chrome124",
             timeout=timeout,
             verify=False
         )
