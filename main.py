@@ -9,7 +9,7 @@ from .cache import CacheManager
 
 @register("casualtiesunknownwiki", "Black_Moss", "Casualties Unknown Wiki 查询", "1.0.0")
 class CasualtiesUnknownWiki(Star):
-    def __init__(self, context: Context, config: AstrBotConfig):
+    def __init__(self, context: Context):
         super().__init__(context)
 
         self.spider = WikiSpider(cookies=cookies)
