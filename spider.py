@@ -57,6 +57,7 @@ class WikiSpider:
         return []
 
     async def _request(self, params: dict) -> dict:
+        logger.info(f"[WikiSpider] 查询: {params}")
         # 优先尝试中文 API
         try:
             async with aiohttp.ClientSession(timeout=self.timeout) as session:
