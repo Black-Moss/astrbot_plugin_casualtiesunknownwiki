@@ -3,6 +3,8 @@ from typing import Optional
 import logging
 from astrbot.api import logger
 from curl_cffi import requests as curl_requests
+import subprocess
+import json
 
 
 class WikiSpider:
@@ -97,6 +99,90 @@ class WikiSpider:
         return self.session.get(url, params=params, headers=headers, cookies=request_cookies)
 
     async def _request(self, params: dict) -> dict:
+        # 如果有 cf_clearance cookie，直接使用 curl 命令
+        if self.cookies and 'cf_clearance' in self.cookies:
+            return await self._request_with_curl(params)
+        
+        # 否则使用 curl_cffi
+        return await self._request_with_curl_cffi(params)
+
+    async def _request_with_curl(self, params: dict) -> dict:
+        """使用 subprocess 调用 curl 命令"""
+        import asyncio
+        
+        def _run_curl(url: str, params: dict) -> tuple[int, str]:
+            # 构建 curl 命令
+            cmd = ['curl', url, '-G']
+            
+            # 添加参数
+            for key, value in params.items():
+                cmd.extend(['--data-urlencode', f'{key}={value}'])
+            
+            # 添加请求头
+            headers = {
+                "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+                "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6",
+                "cache-control": "max-age=0",
+                "sec-ch-ua": '"Chromium";v="146", "Not-A.Brand";v="24", "Microsoft Edge";v="146"',
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": '"Windows"',
+                "sec-fetch-dest": "document",
+                "sec-fetch-mode": "navigate",
+                "sec-fetch-site": "same-origin",
+                "sec-fetch-user": "?1",
+                "upgrade-insecure-requests": "1",
+                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36 Edg/146.0.0.0"
+            }
+            
+            for key, value in headers.items():
+                cmd.extend(['-H', f'{key}: {value}'])
+            
+            # 添加 cookies
+            cookie_str = '; '.join([f'{k}={v}' for k, v in self.cookies.items()])
+            cmd.extend(['-b', cookie_str])
+            
+            # 执行命令
+            try:
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=self.timeout)
+                return result.returncode, result.stdout
+            except subprocess.TimeoutExpired:
+                return -1, ""
+            except Exception as e:
+                logger.error(f"curl 执行失败：{e}")
+                return -1, ""
+        
+        # 优先尝试中文 API
+        try:
+            logger.info(f"[WikiSpider] 中文查询：{params}")
+            loop = asyncio.get_event_loop()
+            code, output = await loop.run_in_executor(None, _run_curl, self.ZH_URL, params)
+            
+            if code == 0 and output.strip():
+                logger.info(f"[WikiSpider] 中文查询成功")
+                return json.loads(output)
+            else:
+                logger.error(f"[WikiSpider] 中文查询失败，返回码：{code}")
+        except Exception as e:
+            logger.error(f"[WikiSpider] 中文 API 请求异常：{type(e).__name__}: {e}")
+
+        # 中文失败后尝试英文 API
+        try:
+            logger.info(f"[WikiSpider] 英文查询：{params}")
+            loop = asyncio.get_event_loop()
+            code, output = await loop.run_in_executor(None, _run_curl, self.EN_URL, params)
+            
+            if code == 0 and output.strip():
+                logger.info(f"[WikiSpider] 英文查询成功")
+                return json.loads(output)
+            else:
+                logger.error(f"[WikiSpider] 英文查询失败，返回码：{code}")
+        except Exception as e:
+            logger.error(f"[WikiSpider] 英文 API 请求异常：{type(e).__name__}: {e}")
+
+        return {"error": "两个 API 都失效了"}
+
+    async def _request_with_curl_cffi(self, params: dict) -> dict:
+        """使用 curl_cffi 库（备用方案）"""
         # 优先尝试中文 API
         try:
             logger.info(f"[WikiSpider] 中文查询：{params}")
