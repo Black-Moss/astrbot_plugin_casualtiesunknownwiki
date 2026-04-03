@@ -12,23 +12,6 @@ class WikiSpider:
 
     def __init__(self, timeout: int = 30):
         self.timeout = timeout
-        self.session = requests.Session()
-        self.session.headers.update({
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8,zh-TW;q=0.7",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Connection": "keep-alive",
-            "Upgrade-Insecure-Requests": "1",
-            "Sec-Fetch-Dest": "document",
-            "Sec-Fetch-Mode": "navigate",
-            "Sec-Fetch-Site": "none",
-            "Cache-Control": "max-age=0",
-        })
-
-    async def close(self):
-        """关闭会话"""
-        self.session.close()
 
     async def query_page(self, title: str, redirects: bool = True) -> dict:
         params = {
@@ -60,21 +43,39 @@ class WikiSpider:
 
         return []
 
+    async def _get_headers(self):
+        """获取请求头"""
+        return {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8,zh-TW;q=0.7",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+            "Cache-Control": "max-age=0",
+        }
+
     async def _search_single(self, url: str, params: dict) -> Optional[list]:
         try:
             response = await asyncio.wait_for(
                 asyncio.to_thread(
-                    self.session.get,
+                    requests.get,
                     url,
                     params=params,
                     allow_redirects=True,
                     timeout=self.timeout,
-                    impersonate="chrome120"
+                    impersonate="chrome120",
+                    headers=await self._get_headers()
                 ),
                 timeout=self.timeout
             )
 
             logger.debug(f"搜索响应状态码：{response.status_code}")
+            logger.debug(f"响应内容前 200 字符：{response.text[:200]}")
+
             if response.status_code == 200:
                 data = response.json()
                 if len(data) >= 2 and data[1]:
@@ -88,7 +89,7 @@ class WikiSpider:
         except asyncio.TimeoutError:
             logger.warning(f"搜索超时 {url}")
         except Exception as e:
-            logger.error(f"搜索异常 {url}: {type(e).__name__}: {e}")
+            logger.error(f"搜索异常 {url}: {type(e).__name__}: {e}", exc_info=True)
 
         return None
 
@@ -108,17 +109,20 @@ class WikiSpider:
         try:
             response = await asyncio.wait_for(
                 asyncio.to_thread(
-                    self.session.get,
+                    requests.get,
                     url,
                     params=params,
                     allow_redirects=True,
                     timeout=self.timeout,
-                    impersonate="chrome120"
+                    impersonate="chrome120",
+                    headers=await self._get_headers()
                 ),
                 timeout=self.timeout
             )
 
             logger.debug(f"请求响应状态码：{response.status_code}")
+            logger.debug(f"响应内容前 200 字符：{response.text[:200]}")
+
             if response.status_code == 200:
                 return response.json()
             elif response.status_code == 403:
@@ -135,7 +139,7 @@ class WikiSpider:
             logger.warning(f"请求超时 {url}")
             return None
         except Exception as e:
-            logger.error(f"请求异常 {url}: {type(e).__name__}: {e}")
+            logger.error(f"请求异常 {url}: {type(e).__name__}: {e}", exc_info=True)
             return None
 
     @staticmethod
