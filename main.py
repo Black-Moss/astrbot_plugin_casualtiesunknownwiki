@@ -14,7 +14,7 @@ class CasualtiesUnknownWiki(Star):
         super().__init__(context)
         self.config = config
         
-        cookies = {}
+---         cookies = {}
         try:
             if hasattr(config, 'wiki_cookies'):
                 cookies = config.wiki_cookies
