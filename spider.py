@@ -1,15 +1,16 @@
-from curl_cffi import requests
-from curl_cffi.const import CurlOpt
+import aiohttp
 from typing import Optional
-from astrbot.api import logger
-import time
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class WikiSpider:
-    BASE_URL = "https://scavprototype.wiki.gg/zh/api.php"
+    EN_URL = "https://scavprototype.wiki.gg/api.php"
+    ZH_URL = "https://scavprototype.wiki.gg/zh/api.php"
 
     def __init__(self, timeout: int = 10):
-        self.timeout = timeout
+        self.timeout = aiohttp.ClientTimeout(total=timeout)
 
     async def query_page(self, title: str, redirects: bool = True) -> dict:
         params = {
@@ -29,58 +30,55 @@ class WikiSpider:
             "search": keyword,
             "limit": limit
         }
+        # 优先尝试中文 API
         try:
-            resp = await self._make_request(params)
-            if resp and len(resp) >= 2:
-                return resp[1]
-            return []
-        except Exception:
-            return []
-
-    async def _make_request(self, params: dict) -> dict | None:
-        """使用更底层的 API 绕过 Cloudflare"""
-        try:
-            from curl_cffi import Curl
-
-            curl = Curl()
-
-            # 设置浏览器特征
-            curl.setopt(CurlOpt.USERAGENT,
-                        b"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
-            curl.setopt(CurlOpt.HTTP_VERSION, 2)
-
-            # 构建 URL
-            url = f"{self.BASE_URL}?{'&'.join([f'{k}={v}' for k, v in params.items()])}"
-            logger.info(f"[WikiSpider] 请求 URL: {url}")
-
-            # 设置 TLS 指纹
-            curl.setopt(CurlOpt.SSL_EC_CURVES, b"x25519kyber768draft00")
-
-            resp = curl.perform(url)
-            status_code = curl.getinfo(CurlInfo.RESPONSE_CODE)
-            content = resp.decode('utf-8')
-
-            logger.info(f"[WikiSpider] 响应状态码：{status_code}")
-
-            if status_code == 200:
-                import json
-                return json.loads(content)
-            else:
-                logger.error(f"[WikiSpider] 请求失败，状态码：{status_code}")
-                return None
-
+            async with aiohttp.ClientSession(timeout=self.timeout) as session:
+                async with session.get(self.ZH_URL, params=params) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        if len(data) >= 2 and data[1]:
+                            return data[1]
         except Exception as e:
-            logger.error(f"[WikiSpider] 请求异常：{str(e)}")
-            return None
+            logger.warning(f"中文 API 搜索失败：{e}")
+
+        # 中文失败后尝试英文 API
+        try:
+            async with aiohttp.ClientSession(timeout=self.timeout) as session:
+                async with session.get(self.EN_URL, params=params) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        if len(data) >= 2 and data[1]:
+                            return data[1]
+        except Exception as e:
+            logger.warning(f"英文 API 搜索失败：{e}")
+
+        return []
 
     async def _request(self, params: dict) -> dict:
-        result = await self._make_request(params)
-        if result:
-            return result
-        return {"error": "HTTP Error 403"}
+        # 优先尝试中文 API
+        try:
+            async with aiohttp.ClientSession(timeout=self.timeout) as session:
+                async with session.get(self.ZH_URL, params=params) as resp:
+                    if resp.status == 200:
+                        return await resp.json()
+        except Exception as e:
+            logger.warning(f"中文 API 请求失败：{e}")
+
+        # 中文失败后尝试英文 API
+        try:
+            async with aiohttp.ClientSession(timeout=self.timeout) as session:
+                async with session.get(self.EN_URL, params=params) as resp:
+                    if resp.status == 200:
+                        return await resp.json()
+        except Exception as e:
+            logger.error(f"英文 API 请求失败：{e}")
+
+        return {"error": "Both API endpoints failed"}
 
     @staticmethod
     def parse_page_content(data: dict) -> Optional[dict]:
+        if "error" in data:
+            return None
         query = data.get("query", {})
         pages = query.get("pages", {})
         for page_id, page_info in pages.items():
@@ -91,4 +89,3 @@ class WikiSpider:
                     "content": page_info["revisions"][0]["*"]
                 }
         return None
-
