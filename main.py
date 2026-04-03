@@ -11,7 +11,21 @@ from .cache import CacheManager
 class CasualtiesUnknownWiki(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
-        self.config = config
+        
+        # 读取配置
+        self.config = config()
+        cookies = {}
+        
+        # 尝试从配置中读取 cookie
+        if hasattr(config, 'wiki_cookies'):
+            cookies = config.wiki_cookies
+        elif 'wiki_cookies' in config:
+            cookies = config['wiki_cookies']
+        
+        # 如果没有配置，尝试从环境变量或默认值读取
+        if not cookies:
+            logger.warning("[Wiki] 未配置 wiki_cookies，可能无法通过 Cloudflare 验证")
+        
         self.spider = WikiSpider(cookies=cookies)
         data_dir = StarTools.get_data_dir()
         self.cache = CacheManager(data_dir)
