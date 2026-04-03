@@ -21,6 +21,7 @@ class WikiSpider:
             "rvprop": "content",
             "redirects": 1 if redirects else 0
         }
+        logger.info(f"[WikiSpider] 查询: {params}")
         return await self._request(params)
 
     async def search(self, keyword: str, limit: int = 10) -> list:
@@ -30,6 +31,7 @@ class WikiSpider:
             "search": keyword,
             "limit": limit
         }
+        logger.info(f"[WikiSpider] 查询: {params}")
         # 优先尝试中文 API
         try:
             async with aiohttp.ClientSession(timeout=self.timeout) as session:
