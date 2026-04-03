@@ -6,6 +6,7 @@ from curl_cffi import requests as curl_requests
 import subprocess
 import json
 import asyncio
+import os
 
 
 class WikiSpider:
@@ -99,100 +100,37 @@ class WikiSpider:
         return self.session.get(url, params=params, headers=headers, cookies=request_cookies)
 
     async def _request(self, params: dict) -> dict:
-        # 始终使用 subprocess 调用 curl
-        return await self._request_with_curl(params)
+        # 使用 curl_cffi 作为主要方法（curl 命令方式已被证明无效）
+        return await self._request_with_curl_cffi(params)
 
-    async def _request_with_curl(self, params: dict) -> dict:
-        """使用 subprocess 调用 curl 命令（Linux）"""
-        
-        def _run_curl(url: str) -> tuple[int, str]:
-            # 构建 curl 命令 - Linux bash 语法
-            cmd_list = ['curl', url, '-G', '--compressed']
-            
-            # 添加参数
-            for key, value in params.items():
-                cmd_list.extend(['--data-urlencode', f'{key}={value}'])
-            
-            # 添加请求头
-            cmd_list.extend(['-H', 'accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7'])
-            cmd_list.extend(['-H', 'accept-language: zh-CN,zh;q=0.9,en;q=0.8'])
-            cmd_list.extend(['-H', 'cache-control: max-age=0'])
-            cmd_list.extend(['-H', 'sec-ch-ua: "Chromium";v="146", "Not-A.Brand";v="24", "Microsoft Edge";v="146"'])
-            cmd_list.extend(['-H', 'sec-ch-ua-mobile: ?0'])
-            cmd_list.extend(['-H', 'sec-ch-ua-platform: "Windows"'])
-            cmd_list.extend(['-H', 'sec-fetch-dest: document'])
-            cmd_list.extend(['-H', 'sec-fetch-mode: navigate'])
-            cmd_list.extend(['-H', 'sec-fetch-site: same-origin'])
-            cmd_list.extend(['-H', 'sec-fetch-user: ?1'])
-            cmd_list.extend(['-H', 'upgrade-insecure-requests: 1'])
-            cmd_list.extend(['-H', 'user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36 Edg/146.0.0.0'])
-            
-            # 添加 cookies
-            if self.cookies:
-                cookie_str = '; '.join([f'{k}={v}' for k, v in self.cookies.items()])
-                logger.info(f"[WikiSpider] 使用 cookies: {cookie_str[:80]}...")
-                cmd_list.extend(['-b', cookie_str])
-            
-            logger.info(f"[WikiSpider] 执行 curl 命令")
-            
-            # 执行命令
-            try:
-                result = subprocess.run(
-                    cmd_list,
-                    capture_output=True,
-                    text=True,
-                    timeout=self.timeout
-                )
-                logger.info(f"[WikiSpider] curl 返回码：{result.returncode}")
-                if result.returncode != 0:
-                    logger.error(f"[WikiSpider] curl stderr: {result.stderr[:200]}")
-                return result.returncode, result.stdout
-            except subprocess.TimeoutExpired:
-                logger.error(f"[WikiSpider] curl 超时")
-                return -1, ""
-            except Exception as e:
-                logger.error(f"curl 执行失败：{e}")
-                return -1, ""
+    async def _request_with_curl_cffi(self, params: dict) -> dict:
+        """使用 curl_cffi 库"""
         
         # 优先尝试中文 API
         try:
             logger.info(f"[WikiSpider] 中文查询：{params}")
-            loop = asyncio.get_event_loop()
-            code, output = await loop.run_in_executor(None, _run_curl, self.ZH_URL)
-            
-            if code == 0 and output.strip():
-                logger.info(f"[WikiSpider] 中文查询成功，响应长度：{len(output)}")
-                logger.info(f"[WikiSpider] 中文响应前 500 字节：{output[:500]}")
-                try:
-                    return json.loads(output)
-                except json.JSONDecodeError as e:
-                    logger.error(f"[WikiSpider] JSON 解析失败：{e}")
-                    if output.strip().startswith('<!DOCTYPE') or output.strip().startswith('<html'):
-                        logger.error("[WikiSpider] 返回的是 HTML 而非 JSON")
-                    raise
+            response = self._make_request(self.ZH_URL, params)
+            logger.info(f"[WikiSpider] 中文响应状态码：{response.status_code}")
+            if response.status_code != 200:
+                logger.error(f"[WikiSpider] 中文响应内容前 500 字节：{response.text[:500]}")
+            if response.status_code == 200:
+                return response.json()
             else:
-                logger.error(f"[WikiSpider] 中文查询失败，返回码：{code}")
+                logger.error(f"[WikiSpider] 中文 API 返回非 200 状态码：{response.status_code}")
         except Exception as e:
             logger.error(f"[WikiSpider] 中文 API 请求异常：{type(e).__name__}: {e}")
 
         # 中文失败后尝试英文 API
         try:
             logger.info(f"[WikiSpider] 英文查询：{params}")
-            loop = asyncio.get_event_loop()
-            code, output = await loop.run_in_executor(None, _run_curl, self.EN_URL)
-            
-            if code == 0 and output.strip():
-                logger.info(f"[WikiSpider] 英文查询成功，响应长度：{len(output)}")
-                logger.info(f"[WikiSpider] 英文响应前 500 字节：{output[:500]}")
-                try:
-                    return json.loads(output)
-                except json.JSONDecodeError as e:
-                    logger.error(f"[WikiSpider] JSON 解析失败：{e}")
-                    if output.strip().startswith('<!DOCTYPE') or output.strip().startswith('<html'):
-                        logger.error("[WikiSpider] 返回的是 HTML 而非 JSON")
-                    raise
+            response = self._make_request(self.EN_URL, params)
+            logger.info(f"[WikiSpider] 英文响应状态码：{response.status_code}")
+            if response.status_code != 200:
+                logger.error(f"[WikiSpider] 英文响应内容前 500 字节：{response.text[:500]}")
+            if response.status_code == 200:
+                return response.json()
             else:
-                logger.error(f"[WikiSpider] 英文查询失败，返回码：{code}")
+                logger.error(f"[WikiSpider] 英文 API 返回非 200 状态码：{response.status_code}")
         except Exception as e:
             logger.error(f"[WikiSpider] 英文 API 请求异常：{type(e).__name__}: {e}")
 
