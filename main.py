@@ -1,7 +1,7 @@
 from pathlib import Path
 from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
 from astrbot.api.star import Context, Star, register, StarTools
-from astrbot.api import logger, AstrBotConfig
+from astrbot.api import logger
 
 from .spider import WikiSpider
 from .cache import CacheManager
@@ -9,11 +9,11 @@ from .cache import CacheManager
 
 @register("casualtiesunknownwiki", "Black_Moss", "Casualties Unknown Wiki 查询", "1.0.0")
 class CasualtiesUnknownWiki(Star):
-    def __init__(self, context: Context, config: AstrBotConfig):
+    def __init__(self, context: Context):
         super().__init__(context)
         
         # 读取配置
-        self.config = config()
+        config = self.context.get_config()
         cookies = {}
         
         # 尝试从配置中读取 cookie
