@@ -8,7 +8,7 @@ class CacheManager:
     CACHE_TTL_HOURS = 24
 
     def __init__(self, data_dir: Path):
-        self.cache_file = data_dir / "stardew_cache.json"
+        self.cache_file = data_dir / "casualtiesunknownwiki.json"
         self._ensure_cache_file()
 
     def _ensure_cache_file(self):

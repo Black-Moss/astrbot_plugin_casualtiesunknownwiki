@@ -7,8 +7,8 @@ from .spider import WikiSpider
 from .cache import CacheManager
 
 
-@register("stardewvalleywiki", "YourName", "星露谷物语中文维基查询插件", "1.0.0")
-class StardewValleyWiki(Star):
+@register("casualtiesunknownwiki", "Black_Moss", "Casualties Unknown Wiki查询", "1.0.0")
+class CasualtiesUnknownWiki(Star):
     def __init__(self, context: Context):
         super().__init__(context)
         self.spider = WikiSpider()
@@ -16,7 +16,7 @@ class StardewValleyWiki(Star):
         self.cache = CacheManager(data_dir)
 
     async def initialize(self):
-        logger.info("星露谷维基查询插件已加载")
+        logger.info("Casualties Unknown Wiki查询已加载")
 
     @filter.command("wiki")
     async def wiki(self, event: AstrMessageEvent):
@@ -24,7 +24,7 @@ class StardewValleyWiki(Star):
         args = args[1:] if args and args[0] in ["wiki", "/wiki"] else args
         
         if not args:
-            yield event.plain_result("请输入查询关键词，如：/wiki 丢失的斧子\n搜索模式：/wiki search 物品名")
+            yield event.plain_result("请输入查询关键词，如：/wiki 设定\n搜索模式：/wiki search 物品名")
             return
 
         if args[0] == "search":
@@ -36,27 +36,6 @@ class StardewValleyWiki(Star):
             result = await self._query(event, keyword)
             if result:
                 yield event.plain_result(result)
-
-    @filter.llm_tool(name="stardew_wiki_search")
-    async def stardew_wiki_search(self, event: AstrMessageEvent, keyword: str) -> MessageEventResult:
-        '''搜索星露谷物语中文维基百科。
-
-        Args:
-            keyword(string): 要搜索的关键词，如物品名、NPC名等
-        '''
-        cached = self.cache.get_search(keyword)
-        if cached:
-            logger.info(f"[Wiki] AI搜索命中缓存: {keyword}")
-            return self._format_search_results(keyword, cached)
-
-        logger.info(f"[Wiki] AI搜索: {keyword}")
-        results = await self.spider.search(keyword)
-        
-        if results:
-            self.cache.set_search(keyword, results)
-            return self._format_search_results(keyword, results)
-        else:
-            return f"未找到相关结果：「{keyword}」"
 
     async def _query(self, event: AstrMessageEvent, keyword: str) -> str | None:
         cached = self.cache.get_page(keyword)
