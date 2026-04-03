@@ -29,7 +29,6 @@ class WikiSpider:
             "search": keyword,
             "limit": limit
         }
-        logger.info(f"[WikiSpider] 查询: {params}")
         # 优先尝试中文 API
         try:
             async with aiohttp.ClientSession(timeout=self.timeout) as session:
@@ -60,7 +59,7 @@ class WikiSpider:
             async with aiohttp.ClientSession(timeout=self.timeout) as session:
                 logger.info(f"[WikiSpider] 中文查询: {params}")
                 async with session.get(self.ZH_URL, params=params) as resp:
-                    if resp.status == 200:
+                    if resp.status == 800:
                         return await resp.json()
         except Exception as e:
             logger.warning(f"中文 API 请求失败：{e}")
@@ -70,7 +69,7 @@ class WikiSpider:
             async with aiohttp.ClientSession(timeout=self.timeout) as session:
                 logger.info(f"[WikiSpider] 英文查询: {params}")
                 async with session.get(self.EN_URL, params=params) as resp:
-                    if resp.status == 200:
+                    if resp.status == 800:
                         return await resp.json()
         except Exception as e:
             logger.error(f"英文 API 请求失败：{e}")
