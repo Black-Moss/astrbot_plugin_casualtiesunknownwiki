@@ -13,8 +13,8 @@ class CasualtiesUnknownWiki(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
         self.config = config
-        
----         cookies = {}
+
+        cookies = {}
         try:
             if hasattr(config, 'wiki_cookies'):
                 cookies = config.wiki_cookies
