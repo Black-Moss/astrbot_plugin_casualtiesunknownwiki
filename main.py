@@ -13,6 +13,7 @@ class CasualtiesUnknownWiki(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
         self.config = config
+        cookies = {}
         self.spider = WikiSpider(cookies=cookies)
         data_dir = StarTools.get_data_dir()
         self.cache = CacheManager(data_dir)
