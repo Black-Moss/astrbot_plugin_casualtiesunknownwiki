@@ -15,12 +15,7 @@ class WikiSpider:
     }
 
     def __init__(self, timeout: int = 10):
-        self.timeout = aiohttp.ClientTimeout(total=timeout)
-        # 初始化 curl_cffi session，启用 impersonate 模式
-        self.session = requests.Session()
-        self.session.headers.update(self.HEADERS)
-        # 使用 Chrome 浏览器的指纹来绕过 Cloudflare
-        self.session.impersonate = "chrome120"
+        self.timeout = timeout
 
     async def query_page(self, title: str, redirects: bool = True) -> dict:
         params = {
@@ -41,11 +36,13 @@ class WikiSpider:
             "limit": limit
         }
         try:
-            # 使用 curl_cffi 发送请求以绕过 Cloudflare
-            resp = self.session.get(
+            # 使用 curl_cffi 发送请求以绕过 Cloudflare，启用 chrome120 模拟
+            resp = requests.get(
                 self.BASE_URL,
                 params=params,
-                timeout=self.timeout.total
+                headers=self.HEADERS,
+                timeout=self.timeout,
+                impersonate="chrome120"
             )
             resp.raise_for_status()
             data = resp.json()
@@ -57,11 +54,13 @@ class WikiSpider:
 
     async def _request(self, params: dict) -> dict:
         try:
-            # 使用 curl_cffi 发送请求以绕过 Cloudflare
-            resp = self.session.get(
+            # 使用 curl_cffi 发送请求以绕过 Cloudflare，启用 chrome120 模拟
+            resp = requests.get(
                 self.BASE_URL,
                 params=params,
-                timeout=self.timeout.total
+                headers=self.HEADERS,
+                timeout=self.timeout,
+                impersonate="chrome120"
             )
             resp.raise_for_status()
             return resp.json()
@@ -81,7 +80,3 @@ class WikiSpider:
                 }
         return None
 
-    def __del__(self):
-        # 清理 session
-        if hasattr(self, 'session'):
-            self.session.close()
