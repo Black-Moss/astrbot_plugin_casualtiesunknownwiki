@@ -4,6 +4,7 @@ import logging
 from astrbot.api import logger
 from curl_cffi import requests as curl_requests
 
+
 class WikiSpider:
     EN_URL = "https://scavprototype.wiki.gg/api.php"
     ZH_URL = "https://scavprototype.wiki.gg/zh/api.php"

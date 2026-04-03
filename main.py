@@ -30,7 +30,6 @@ class CasualtiesUnknownWiki(Star):
         data_dir = StarTools.get_data_dir()
         self.cache = CacheManager(data_dir)
 
-
     async def initialize(self):
         logger.info("Casualties Unknown Wiki 查询已加载")
 
