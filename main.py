@@ -1,7 +1,7 @@
 from pathlib import Path
 from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
 from astrbot.api.star import Context, Star, register, StarTools
-from astrbot.api import logger
+from astrbot.api import logger, AstrBotConfig
 
 from .spider import WikiSpider
 from .cache import CacheManager
