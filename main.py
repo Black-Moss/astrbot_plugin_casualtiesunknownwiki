@@ -13,7 +13,20 @@ class CasualtiesUnknownWiki(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
         self.config = config
+        
         cookies = {}
+        try:
+            if hasattr(config, 'wiki_cookies'):
+                cookies = config.wiki_cookies
+            elif isinstance(config, dict) and 'wiki_cookies' in config:
+                cookies = config['wiki_cookies']
+        except Exception as e:
+            logger.warning(f"[Wiki] 读取 wiki_cookies 配置失败：{e}")
+        
+        # 如果配置中没有 cookies，使用默认值（空）
+        if not cookies:
+            logger.warning("[Wiki] 未在配置中找到 wiki_cookies，将以匿名方式访问（可能被 Cloudflare 拦截）")
+        
         self.spider = WikiSpider(cookies=cookies)
         data_dir = StarTools.get_data_dir()
         self.cache = CacheManager(data_dir)
