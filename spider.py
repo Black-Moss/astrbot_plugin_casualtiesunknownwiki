@@ -1,6 +1,6 @@
-import aiohttp
-from typing import Optional
 from curl_cffi import requests
+from typing import Optional
+from astrbot.api import logger
 
 
 class WikiSpider:
