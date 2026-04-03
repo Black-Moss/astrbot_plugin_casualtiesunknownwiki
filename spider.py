@@ -16,7 +16,7 @@ class WikiSpider:
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Accept": "application/json, text/plain, */*",
             "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-            "Accept-Encoding": "gzip, deflate, br",
+            "Accept-Encoding": "gzip, deflate",
             "Connection": "keep-alive",
         }
 
@@ -71,7 +71,7 @@ class WikiSpider:
         try:
             logger.debug(f"请求中文 API: {self.ZH_URL}, params={params}")
             async with aiohttp.ClientSession(timeout=self.timeout, headers=self.headers) as session:
-                async with session.get(self.ZH_URL, params=params) as resp:
+                async with session.get(self.ZH_URL, params=params, auto_decompress=False) as resp:
                     logger.debug(f"中文 API 响应状态码：{resp.status}")
                     if resp.status == 200:
                         return await resp.json()
@@ -90,7 +90,7 @@ class WikiSpider:
         try:
             logger.debug(f"请求英文 API: {self.EN_URL}, params={params}")
             async with aiohttp.ClientSession(timeout=self.timeout, headers=self.headers) as session:
-                async with session.get(self.EN_URL, params=params) as resp:
+                async with session.get(self.EN_URL, params=params, auto_decompress=False) as resp:
                     logger.debug(f"英文 API 响应状态码：{resp.status}")
                     if resp.status == 200:
                         return await resp.json()
