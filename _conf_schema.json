@@ -1,0 +1,17 @@
+﻿{
+  "wiki_cookies": {
+    "description": "wiki.gg的Cookies",
+    "type": "object",
+    "hint": "xxxx",
+    "items": {
+      "wikigg-session": {
+        "description": "你的 session cookie 值",
+        "type": "string"
+      },
+      "wikigg-user": {
+        "description": "你的 user cookie 值",
+        "type": "string"
+      }
+    }
+  }
+}
