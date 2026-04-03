@@ -11,9 +11,6 @@ class WikiSpider:
 
     def __init__(self, timeout: int = 10):
         self.timeout = aiohttp.ClientTimeout(total=timeout)
-        self.headers = {
-            "User-Agent": "AstrBot-CasualtiesUnknownWiki-Plugin/1.0.0"
-        }
 
     async def query_page(self, title: str, redirects: bool = True) -> dict:
         params = {
@@ -35,63 +32,48 @@ class WikiSpider:
         }
         # 优先尝试中文 API
         try:
-            async with aiohttp.ClientSession(timeout=self.timeout, headers=self.headers) as session:
+            async with aiohttp.ClientSession(timeout=self.timeout) as session:
                 async with session.get(self.ZH_URL, params=params) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         if len(data) >= 2 and data[1]:
                             return data[1]
         except Exception as e:
-            logger.warning(f"中文 API 搜索失败：{type(e).__name__}: {e}")
+            logger.warning(f"中文 API 搜索失败：{e}")
 
         # 中文失败后尝试英文 API
         try:
-            async with aiohttp.ClientSession(timeout=self.timeout, headers=self.headers) as session:
+            async with aiohttp.ClientSession(timeout=self.timeout) as session:
                 async with session.get(self.EN_URL, params=params) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         if len(data) >= 2 and data[1]:
                             return data[1]
         except Exception as e:
-            logger.warning(f"英文 API 搜索失败：{type(e).__name__}: {e}")
+            logger.warning(f"英文 API 搜索失败：{e}")
 
         return []
 
     async def _request(self, params: dict) -> dict:
-        errors = []
-
         # 优先尝试中文 API
         try:
-            logger.debug(f"请求中文 API: {self.ZH_URL}, params={params}")
-            async with aiohttp.ClientSession(timeout=self.timeout, headers=self.headers) as session:
+            async with aiohttp.ClientSession(timeout=self.timeout) as session:
                 async with session.get(self.ZH_URL, params=params) as resp:
-                    logger.debug(f"中文 API 响应状态码：{resp.status}")
                     if resp.status == 200:
                         return await resp.json()
-                    else:
-                        errors.append(f"中文 API 返回状态码 {resp.status}")
         except Exception as e:
-            error_msg = f"中文 API 请求失败：{type(e).__name__}: {e}"
-            logger.warning(error_msg)
-            errors.append(error_msg)
+            logger.warning(f"中文 API 请求失败：{e}")
 
         # 中文失败后尝试英文 API
         try:
-            logger.debug(f"请求英文 API: {self.EN_URL}, params={params}")
-            async with aiohttp.ClientSession(timeout=self.timeout, headers=self.headers) as session:
+            async with aiohttp.ClientSession(timeout=self.timeout) as session:
                 async with session.get(self.EN_URL, params=params) as resp:
-                    logger.debug(f"英文 API 响应状态码：{resp.status}")
                     if resp.status == 200:
                         return await resp.json()
-                    else:
-                        errors.append(f"英文 API 返回状态码 {resp.status}")
         except Exception as e:
-            error_msg = f"英文 API 请求失败：{type(e).__name__}: {e}"
-            logger.error(error_msg)
-            errors.append(error_msg)
+            logger.error(f"英文 API 请求失败：{e}")
 
-        logger.error(f"两个 API 端点都失败了：{errors}")
-        return {"error": f"Both API endpoints failed: {'; '.join(errors)}"}
+        return {"error": "Both API endpoints failed"}
 
     @staticmethod
     def parse_page_content(data: dict) -> Optional[dict]:
@@ -107,4 +89,3 @@ class WikiSpider:
                     "content": page_info["revisions"][0]["*"]
                 }
         return None
-
