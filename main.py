@@ -1,6 +1,7 @@
 from pathlib import Path
 from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
 from astrbot.api.star import Context, Star, register, StarTools
+from astrbot.core.config.astrbot_config import AstrBotConfig
 from astrbot.api import logger
 
 from .spider import WikiSpider
@@ -9,23 +10,9 @@ from .cache import CacheManager
 
 @register("casualtiesunknownwiki", "Black_Moss", "Casualties Unknown Wiki 查询", "1.0.0")
 class CasualtiesUnknownWiki(Star):
-    def __init__(self, context: Context):
+    def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
-        
-        # 读取配置
-        config = self.context.get_config()
-        cookies = {}
-        
-        # 尝试从配置中读取 cookie
-        if hasattr(config, 'wiki_cookies'):
-            cookies = config.wiki_cookies
-        elif 'wiki_cookies' in config:
-            cookies = config['wiki_cookies']
-        
-        # 如果没有配置，尝试从环境变量或默认值读取
-        if not cookies:
-            logger.warning("[Wiki] 未配置 wiki_cookies，可能无法通过 Cloudflare 验证")
-        
+        self.config = config
         self.spider = WikiSpider(cookies=cookies)
         data_dir = StarTools.get_data_dir()
         self.cache = CacheManager(data_dir)
