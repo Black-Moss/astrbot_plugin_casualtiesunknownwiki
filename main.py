@@ -9,9 +9,9 @@ from .cache import CacheManager
 
 @register("casualtiesunknownwiki", "Black_Moss", "Casualties Unknown Wiki 查询", "1.0.0")
 class CasualtiesUnknownWiki(Star):
-    def __init__(self, context: Context):
+    def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
-
+        self.config = config
         self.spider = WikiSpider(cookies=cookies)
         data_dir = StarTools.get_data_dir()
         self.cache = CacheManager(data_dir)
