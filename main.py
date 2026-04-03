@@ -47,10 +47,10 @@ class CasualtiesUnknownWiki(Star):
             """)
             return
 
-        if args[2] in ["en", "EN"]:
-            args[2] = "EN"
-        if args[2] in ["zh", "ZH"]:
-            args[2] = "ZH"
+        if len(args) > 2:
+            args[2] = args[2].upper()
+            if args[2] not in ["EN", "ZH"]:
+                args[2] = "ZH"
 
         if args[0] == "search":
             result = await self._search(event, args[1:] if len(args) > 1 else [])
