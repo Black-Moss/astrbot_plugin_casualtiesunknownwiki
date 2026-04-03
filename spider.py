@@ -1,6 +1,8 @@
 import aiohttp
 from typing import Optional
+import logging
 
+logger = logging.getLogger(__name__)
 
 class WikiSpider:
     EN_URL = "https://scavprototype.wiki.gg/api.php"
