@@ -2,7 +2,6 @@ import aiohttp
 from typing import Optional
 import logging
 import asyncio
-import random
 
 logger = logging.getLogger(__name__)
 
@@ -11,24 +10,35 @@ class WikiSpider:
     EN_URL = "https://scavprototype.wiki.gg/api.php"
     ZH_URL = "https://scavprototype.wiki.gg/zh/api.php"
 
-    def __init__(self, timeout: int = 10):
+    def __init__(self, timeout: int = 15):
         self.timeout = aiohttp.ClientTimeout(total=timeout)
 
-        user_agents = [
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        ]
-
-        self.headers = {
-            "User-Agent": random.choice(user_agents),
-            "Accept": "application/json, text/plain;q=0.9, */*;q=0.8",
-            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8,zh-TW;q=0.7",
+    async def _create_session(self) -> aiohttp.ClientSession:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
             "Accept-Encoding": "gzip, deflate",
             "Connection": "keep-alive",
             "Upgrade-Insecure-Requests": "1",
-            "Cache-Control": "no-cache",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+            "Cache-Control": "max-age=0",
         }
+
+        connector = aiohttp.TCPConnector(
+            ssl=True,
+            enable_cleanup_closed=True,
+            force_close=False,
+        )
+
+        return aiohttp.ClientSession(
+            timeout=self.timeout,
+            headers=headers,
+            connector=connector,
+            cookie_jar=aiohttp.CookieJar()
+        )
 
     async def query_page(self, title: str, redirects: bool = True) -> dict:
         params = {
@@ -48,85 +58,69 @@ class WikiSpider:
             "search": keyword,
             "limit": limit
         }
-        # 优先尝试中文 API
-        try:
-            async with aiohttp.ClientSession(timeout=self.timeout, headers=self.headers) as session:
-                async with session.get(self.ZH_URL, params=params) as resp:
-                    logger.debug(f"中文搜索响应状态码：{resp.status}")
-                    if resp.status == 200:
-                        data = await resp.json()
-                        if len(data) >= 2 and data[1]:
-                            return data[1]
-        except Exception as e:
-            logger.warning(f"中文 API 搜索失败：{type(e).__name__}: {e}")
 
-        # 中文失败后尝试英文 API
-        try:
-            async with aiohttp.ClientSession(timeout=self.timeout, headers=self.headers) as session:
-                async with session.get(self.EN_URL, params=params) as resp:
-                    logger.debug(f"英文搜索响应状态码：{resp.status}")
-                    if resp.status == 200:
-                        data = await resp.json()
-                        if len(data) >= 2 and data[1]:
-                            return data[1]
-        except Exception as e:
-            logger.warning(f"英文 API 搜索失败：{type(e).__name__}: {e}")
+        result = await self._search_single(self.ZH_URL, params)
+        if result:
+            return result
+
+        result = await self._search_single(self.EN_URL, params)
+        if result:
+            return result
 
         return []
 
+    async def _search_single(self, url: str, params: dict) -> Optional[list]:
+        session = None
+        try:
+            session = await self._create_session()
+
+            async with session.get(url, params=params, allow_redirects=True) as resp:
+                logger.debug(f"搜索响应状态码：{resp.status}")
+                if resp.status == 200:
+                    data = await resp.json()
+                    if len(data) >= 2 and data[1]:
+                        return data[1]
+                else:
+                    logger.warning(f"搜索失败，状态码：{resp.status}")
+        except Exception as e:
+            logger.warning(f"搜索失败 {url}: {type(e).__name__}: {e}")
+        finally:
+            if session:
+                await session.close()
+        return None
+
     async def _request(self, params: dict) -> dict:
-        errors = []
+        result = await self._request_single(self.ZH_URL, params)
+        if result:
+            return result
 
-        connector = aiohttp.TCPConnector(ssl=False)
+        result = await self._request_single(self.EN_URL, params)
+        if result:
+            return result
 
-        # 优先尝试中文 API
+        return {"error": "Both API endpoints failed"}
+
+    async def _request_single(self, url: str, params: dict) -> Optional[dict]:
+        session = None
         try:
-            logger.debug(f"请求中文 API: {self.ZH_URL}, params={params}")
-            async with aiohttp.ClientSession(
-                    timeout=self.timeout,
-                    headers=self.headers,
-                    connector=connector
-            ) as session:
-                async with session.get(self.ZH_URL, params=params, auto_decompress=False) as resp:
-                    logger.debug(f"中文 API 响应状态码：{resp.status}, 响应头：{dict(resp.headers)}")
-                    if resp.status == 200:
-                        return await resp.json()
-                    elif resp.status == 403:
-                        error_msg = f"中文 API 拒绝访问 (403)"
-                        logger.error(error_msg)
-                        errors.append(error_msg)
-                    else:
-                        errors.append(f"中文 API 返回状态码 {resp.status}")
-        except Exception as e:
-            error_msg = f"中文 API 请求失败：{type(e).__name__}: {e}"
-            logger.warning(error_msg)
-            errors.append(error_msg)
+            session = await self._create_session()
 
-        # 中文失败后尝试英文 API
-        try:
-            logger.debug(f"请求英文 API: {self.EN_URL}, params={params}")
-            async with aiohttp.ClientSession(
-                    timeout=self.timeout,
-                    headers=self.headers,
-                    connector=connector
-            ) as session:
-                async with session.get(self.EN_URL, params=params, auto_decompress=False) as resp:
-                    logger.debug(f"英文 API 响应状态码：{resp.status}, 响应头：{dict(resp.headers)}")
-                    if resp.status == 200:
-                        return await resp.json()
-                    elif resp.status == 403:
-                        error_msg = f"英文 API 拒绝访问 (403)"
-                        logger.error(error_msg)
-                        errors.append(error_msg)
-                    else:
-                        errors.append(f"英文 API 返回状态码 {resp.status}")
+            async with session.get(url, params=params, allow_redirects=True) as resp:
+                logger.debug(f"请求响应状态码：{resp.status}")
+                if resp.status == 200:
+                    return await resp.json()
+                elif resp.status == 403:
+                    logger.error(f"API 返回 403，可能被 Cloudflare 限制访问")
+                    return None
+                else:
+                    logger.warning(f"API 返回状态码 {resp.status}")
+                    return None
         except Exception as e:
-            error_msg = f"英文 API 请求失败：{type(e).__name__}: {e}"
-            logger.error(error_msg)
-            errors.append(error_msg)
-
-        logger.error(f"两个 API 端点都失败了：{errors}")
-        return {"error": f"Both API endpoints failed: {'; '.join(errors)}"}
+            logger.warning(f"请求失败 {url}: {type(e).__name__}: {e}")
+            return None
+        finally:
+            if session:
+                await session.close()
 
     @staticmethod
     def parse_page_content(data: dict) -> Optional[dict]:
