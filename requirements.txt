@@ -1,3 +1,4 @@
 aiohttp
 brotli
 curl_cffi
+playwright
