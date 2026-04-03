@@ -162,7 +162,16 @@ class WikiSpider:
             
             if code == 0 and output.strip():
                 logger.info(f"[WikiSpider] 中文查询成功，响应长度：{len(output)}")
-                return json.loads(output)
+                # 输出前 500 字节用于调试
+                logger.info(f"[WikiSpider] 中文响应前 500 字节：{output[:500]}")
+                try:
+                    return json.loads(output)
+                except json.JSONDecodeError as e:
+                    logger.error(f"[WikiSpider] JSON 解析失败：{e}")
+                    # 尝试检测是否为 HTML
+                    if output.strip().startswith('<!DOCTYPE') or output.strip().startswith('<html'):
+                        logger.error("[WikiSpider] 返回的是 HTML 而非 JSON")
+                    raise
             else:
                 logger.error(f"[WikiSpider] 中文查询失败，返回码：{code}")
         except Exception as e:
@@ -176,7 +185,16 @@ class WikiSpider:
             
             if code == 0 and output.strip():
                 logger.info(f"[WikiSpider] 英文查询成功，响应长度：{len(output)}")
-                return json.loads(output)
+                # 输出前 500 字节用于调试
+                logger.info(f"[WikiSpider] 英文响应前 500 字节：{output[:500]}")
+                try:
+                    return json.loads(output)
+                except json.JSONDecodeError as e:
+                    logger.error(f"[WikiSpider] JSON 解析失败：{e}")
+                    # 尝试检测是否为 HTML
+                    if output.strip().startswith('<!DOCTYPE') or output.strip().startswith('<html'):
+                        logger.error("[WikiSpider] 返回的是 HTML 而非 JSON")
+                    raise
             else:
                 logger.error(f"[WikiSpider] 英文查询失败，返回码：{code}")
         except Exception as e:
