@@ -19,25 +19,29 @@ class WikiSpider:
             "rvprop": "content",
             "redirects": 1 if redirects else 0
         }
-        return await self._request(params)
-
-    async def search(self, keyword: str, limit: int = 10) -> list:
-        params = {
-            "action": "opensearch",
-            "format": "json",
-            "search": keyword,
-            "limit": limit
-        }
+        # 优先尝试中文 API
         try:
-            async with aiohttp.ClientSession(timeout=self.timeout) as session:
-                async with session.get(self.BASE_URL, params=params) as resp:
-                    resp.raise_for_status()
-                    data = await resp.json()
-                    if len(data) >= 2:
-                        return data[1]
-                    return []
-        except Exception:
-            return []
+            async with aiohttp.ClientSession(timeout=self.timeout, headers=self.headers) as session:
+                async with session.get(self.ZH_URL, params=params) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        if len(data) >= 2 and data[1]:
+                            return data[1]
+        except Exception as e:
+            logger.warning(f"中文 API 搜索失败：{e}")
+
+        # 中文失败后尝试英文 API
+        try:
+            async with aiohttp.ClientSession(timeout=self.timeout, headers=self.headers) as session:
+                async with session.get(self.EN_URL, params=params) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        if len(data) >= 2 and data[1]:
+                            return data[1]
+        except Exception as e:
+            logger.warning(f"英文 API 搜索失败：{e}")
+
+        return []
 
     async def _request(self, params: dict) -> dict:
         try:
@@ -50,6 +54,8 @@ class WikiSpider:
 
     @staticmethod
     def parse_page_content(data: dict) -> Optional[dict]:
+        if "error" in data:
+            return None
         query = data.get("query", {})
         pages = query.get("pages", {})
         for page_id, page_info in pages.items():
